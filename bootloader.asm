@@ -7,7 +7,6 @@ bits 16
 
     mov ax, 0x07C0
     mov ds, ax
-    mov [ds:0], word 0x6F87
 
     mov ax, 0x07E0
     mov ss, ax
@@ -17,13 +16,15 @@ bits 16
 
     mov sp, 0x2000
 
-    mov ax, 0013h
-    int 10h
+    call init_prng
+
+    mov ax, 0x0013
+    int 0x10
 
     push 0xFFFF
     push 0xFFFF
-    push 0x0020
-    push 0x0020
+    push 0x0000
+    push 0x0000
 
     _loop:
         pop ax
@@ -53,7 +54,6 @@ bits 16
 
         xor al, al
         xchg ah, al
-        ; mov ax, 0
 
         inc ax
         shl ax, 2
@@ -196,6 +196,20 @@ get_neighbours:
     pop cx
     ret
 
+
+init_prng:
+    mov ax, 0x0002
+    int 0x1a
+
+    mov bx, cx
+    xor bl, dh
+
+    mov ax, 0x0004
+    int 0x1a
+    xor bx, dx
+
+    mov [ds:0], bx
+    ret
 
 
 times 510 - ($ - $$) db 0

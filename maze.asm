@@ -33,11 +33,15 @@ bits 16
     call create_maze
     sti
 
+    mov cx, 0
     .inf_loop:
         mov dx, 0x03DA
         in al, dx
         and al, 0x08
         jz .inf_loop
+
+        inc cx
+        jnz .wait_for_non_vblank
 
         mov al, [ds:color_offset]
         dec al
@@ -50,11 +54,6 @@ bits 16
         in al, dx
         and al, 0x08
         jz .wait_for_non_vblank
-
-        mov ah, 0x86
-        mov cx, 0x01
-        mov dx, 0x00
-        int 0x15
     jmp .inf_loop
 
 

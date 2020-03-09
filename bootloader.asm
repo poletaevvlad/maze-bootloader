@@ -29,6 +29,7 @@ bits 16
 
     mov ax, 0x0013
     int 0x10
+    call init_color_palette
 
     call create_maze
 
@@ -43,14 +44,16 @@ create_maze:
     push 0x0000
     push 0x0000
 
+    xor ax, ax
+    xor bx, bx
+    call set_cell
+
     .create_loop:
         pop ax
         pop bx
 
         cmp ax, 0xFFFF
         je .create_end  ; The stack is empty
-
-        call set_cell
 
         sub sp, 16
         mov si, sp
@@ -124,24 +127,33 @@ get_offset:
 
 ;set_cell(ax, bx)
 set_cell:
+    push ax
+
     call get_offset
-    mov [es:di], byte 0x50
+    mov al, [ds:color]
+
+    inc al
+    cmp al, 0x40
+    jb .skip_set_0
+    mov al, 1
+    .skip_set_0:
+
+    mov [es:di], al
+    mov [ds:color], al
+
+    pop ax
     ret
 
 
 ;connect(ax, bx, cd, dx)
 connect:
     pusha
-    xchg ax, cx
-    xchg bx, dx
-    call set_cell
 
     cmp ax, cx
     je .connect_same_row
 
     add ax, cx
     shr ax, 1
-
     jmp .connect_end
 
     .connect_same_row:
@@ -150,6 +162,10 @@ connect:
 
     .connect_end:
     call set_cell
+
+    mov ax, cx
+    mov bx, dx
+    call set_cell
     popa
     ret
 
@@ -157,6 +173,8 @@ connect:
 ;add_neighbour(ax, bx, si)
 add_neighbour:
     call get_offset
+    push cx
+
     mov cl, [es:di]
     cmp cl, 0x00
     jne .add_neighbour_end
@@ -167,12 +185,14 @@ add_neighbour:
     inc dx
 
     .add_neighbour_end:
+    pop cx
     ret
 
 
 ;get_neighbours(ax, bx, si) -> dx
 get_neighbours:
     push cx
+
     xor dx, dx
 
     cmp bx, 0
@@ -258,7 +278,33 @@ kbd_interrupt:
     iret
 
 
-rng_state dd 0x0000
+init_color_palette:
+    xor ax, ax
+    mov dx, 0x03C8
+    out dx, al
+    inc dx
+
+    xor bx, bx
+    .palette_loop:
+        xor al, al
+        out dx, al
+
+        mov al, bl
+        and al, 0x3f
+        out dx, al
+
+        xor al, al
+        out dx, al
+
+        inc bx
+        cmp bx, 0x40
+    jne .palette_loop
+
+    ret
+
+
+color db 0x00
+rng_state dw 0x0000
 
 times 510 - ($ - $$) db 0
 dw 0xAA55

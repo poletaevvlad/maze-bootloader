@@ -1,9 +1,9 @@
 build:
-	nasm -f bin maze.asm -o maze
+	nasm -f bin maze.asm -o maze.com
 
 floppy: build
 	dd if=/dev/zero of=maze.img bs=1024 count=1440
-	dd if=maze of=maze.img seek=0 count=1 conv=notrunc
+	dd if=maze.com of=maze.img seek=0 count=1 conv=notrunc
 
 
 vdi: floppy

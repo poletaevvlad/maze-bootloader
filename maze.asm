@@ -132,16 +132,15 @@ gen_random:
 
 ; get_offset(ax, bx) -> di
 get_offset:
-    push dx
     push ax
 
-    mov dx, SCREEN_WIDTH
-    mul dx
-    add ax, bx
     mov di, ax
+    shl di, 8
+    shl ax, 6
+    add di, ax
+    add di, bx
 
     pop ax
-    pop dx
     ret
 
 

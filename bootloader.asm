@@ -23,7 +23,6 @@ bits 16
     mov fs, ax
     mov [fs:(KBD_INTERRUPT * 4)], word kbd_interrupt
     mov [fs:(KBD_INTERRUPT * 4 + 2)], cs
-    sti
 
     call init_prng
 
@@ -32,9 +31,30 @@ bits 16
     call init_color_palette
 
     call create_maze
+    sti
 
     .inf_loop:
-        hlt
+        mov dx, 0x03DA
+        in al, dx
+        and al, 0x08
+        jz .inf_loop
+
+        mov al, [ds:color_offset]
+        dec al
+        mov [ds:color_offset], al
+        call init_color_palette
+        xor bx, bx
+
+        .wait_for_non_vblank:
+        mov dx, 0x03DA
+        in al, dx
+        and al, 0x08
+        jz .wait_for_non_vblank
+
+        mov ah, 0x86
+        mov cx, 0x01
+        mov dx, 0x00
+        int 0x15
     jmp .inf_loop
 
 
@@ -284,12 +304,19 @@ init_color_palette:
     out dx, al
     inc dx
 
+    xor al, al
+    out dx, al
+    out dx, al
+    out dx, al
+
     xor bx, bx
+    mov cl, [color_offset]
     .palette_loop:
         xor al, al
         out dx, al
 
         mov al, bl
+        add al, cl
         and al, 0x3f
         out dx, al
 
@@ -299,10 +326,10 @@ init_color_palette:
         inc bx
         cmp bx, 0x40
     jne .palette_loop
-
     ret
 
 
+color_offset db 0x00
 color db 0x00
 rng_state dw 0x0000
 

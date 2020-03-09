@@ -1,10 +1,12 @@
 %define SCREEN_WIDTH 320
 %define SCREEN_HEIGHT 200
+%define KBD_INTERRUPT 0x09
 
 bits 16
 
-    ; Initialization
+    jmp 0x7C0:start
 
+    start:
     mov ax, 0x07C0
     mov ds, ax
 
@@ -16,22 +18,37 @@ bits 16
 
     mov sp, 0x2000
 
+    cli
+    mov ax, 0x0000
+    mov fs, ax
+    mov [fs:(KBD_INTERRUPT * 4)], word kbd_interrupt
+    mov [fs:(KBD_INTERRUPT * 4 + 2)], cs
+    sti
+
     call init_prng
 
     mov ax, 0x0013
     int 0x10
 
+    call create_maze
+
+    .inf_loop:
+        hlt
+    jmp .inf_loop
+
+
+create_maze:
     push 0xFFFF
     push 0xFFFF
     push 0x0000
     push 0x0000
 
-    _loop:
+    .create_loop:
         pop ax
         pop bx
 
         cmp ax, 0xFFFF
-        je _end  ; The stack is empty
+        je .create_end  ; The stack is empty
 
         call set_cell
 
@@ -43,7 +60,7 @@ bits 16
         cmp dx, 0
         jne .iteration
         add sp, 16
-        jmp _loop
+        jmp .create_loop
 
         .iteration:
         push ax
@@ -71,23 +88,20 @@ bits 16
         push dx
         push cx
 
-    jmp _loop
+    jmp .create_loop
 
-    _end:
-
-    cli
-    hlt
-
+    .create_end:
+    ret
 
 ; gen_random() -> ax
 gen_random:
     push dx
 
-    mov ax, [ds:0]
+    mov ax, [ds:rng_state]
     add ax, 0x2b7f
     mov dx, 0x9f89
     mul dx
-    mov [ds:0], ax
+    mov [ds:rng_state], ax
 
     pop dx
     ret
@@ -208,9 +222,43 @@ init_prng:
     int 0x1a
     xor bx, dx
 
-    mov [ds:0], bx
+    mov [ds:rng_state], bx
     ret
 
+
+clear_screen:
+    xor si, si
+    mov al, 0
+    .clear_loop:
+        mov [es:si], al
+        inc si
+    cmp si, (SCREEN_WIDTH * SCREEN_HEIGHT)
+    jb .clear_loop
+    ret
+
+
+kbd_interrupt:
+    cli
+    pusha
+
+    in al, 0x60
+    cmp al, 0x39
+    jne .finish
+
+    call clear_screen
+    call create_maze
+
+    .finish:
+
+    mov al, 0x20
+    out 0x20, al
+
+    popa
+    sti
+    iret
+
+
+rng_state dd 0x0000
 
 times 510 - ($ - $$) db 0
 dw 0xAA55
